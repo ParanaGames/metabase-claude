@@ -2,12 +2,10 @@
 import { useState, useRef, useEffect } from 'react'
 
 export default function Home() {
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: "Hi! I'm your data assistant. Ask me anything about your data — for example:\n\n• \"Show me total revenue by month this year\"\n• \"Which customers have the highest order count?\"\n• \"Compare sales this week vs last week\""
-    }
-  ])
+  const [messages, setMessages] = useState([{
+    role: 'assistant',
+    content: "Hi! I'm your data assistant. Ask me anything about your data — for example:\n\n• \"Show me total revenue by month this year\"\n• \"Which customers have the highest order count?\"\n• \"Compare sales this week vs last week\""
+  }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [db, setDb] = useState('1')
@@ -23,7 +21,6 @@ export default function Home() {
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: userMessage }])
     setLoading(true)
-
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -31,44 +28,27 @@ export default function Home() {
         body: JSON.stringify({ question: userMessage, databaseId: db })
       })
       const data = await res.json()
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.answer,
-        sql: data.sql,
-        results: data.results,
-        error: data.error
-      }])
+      setMessages(prev => [...prev, { role: 'assistant', content: data.answer, sql: data.sql, results: data.results, error: data.error }])
     } catch {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Something went wrong. Please try again.',
-        error: true
-      }])
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Something went wrong. Please try again.', error: true }])
     }
     setLoading(false)
   }
 
   function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxWidth: 900, margin: '0 auto', padding: '0 16px' }}>
       <div style={{ padding: '16px 0', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>🔍 Ask Your Data</h1>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Ask Your Data</h1>
           <p style={{ margin: 0, fontSize: 13, color: '#888' }}>Powered by Claude + Metabase</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <label style={{ fontSize: 13, color: '#555' }}>Database:</label>
-          <select
-            value={db}
-            onChange={e => setDb(e.target.value)}
-            style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
-          >
+          <select value={db} onChange={e => setDb(e.target.value)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}>
             <option value="1">BigQuery</option>
             <option value="2">ClickHouse</option>
           </select>
@@ -88,4 +68,37 @@ export default function Home() {
               {msg.results && msg.results.rows && msg.results.rows.length > 0 && (
                 <div style={{ marginTop: 12, overflowX: 'auto' }}>
                   <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Results ({msg.results.rows.length} rows):</div>
-                  <table style={{ bo
+                  <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
+                    <thead>
+                      <tr>{msg.results.columns.map((col, ci) => (<th key={ci} style={{ background: '#f0f4ff', padding: '6px 10px', border: '1px solid #e0e0e0', textAlign: 'left', fontWeight: 600 }}>{col}</th>))}</tr>
+                    </thead>
+                    <tbody>
+                      {msg.results.rows.slice(0, 50).map((row, ri) => (
+                        <tr key={ri} style={{ background: ri % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          {row.map((cell, ci) => (<td key={ci} style={{ padding: '5px 10px', border: '1px solid #e0e0e0', whiteSpace: 'nowrap' }}>{cell === null ? '-' : String(cell)}</td>))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 16 }}>
+            <div style={{ background: '#fff', borderRadius: '18px 18px 18px 4px', padding: '12px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', fontSize: 14, color: '#888' }}>Thinking...</div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      <div style={{ padding: '12px 0 20px', borderTop: '1px solid #e0e0e0' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} placeholder="Ask a question about your data..." rows={2} style={{ flex: 1, padding: '12px 14px', borderRadius: 12, border: '1px solid #ddd', fontSize: 14, resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.5 }} />
+          <button onClick={sendMessage} disabled={loading || !input.trim()} style={{ padding: '12px 20px', background: loading || !input.trim() ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: loading || !input.trim() ? 'not-allowed' : 'pointer' }}>Send</button>
+        </div>
+        <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>Press Enter to send</div>
+      </div>
+    </div>
+  )
+}
